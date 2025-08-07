@@ -34,9 +34,11 @@ namespace OpenAI.Chat
             JsonSchema jsonSchema = null,
             AudioConfig audioConfig = null,
             ReasoningEffort? reasoningEffort = null,
+            string verbosity = null,  // GPT-5 NEW
             string user = null)
             : this(messages, model, frequencyPenalty, logitBias, maxTokens, number, presencePenalty,
-                responseFormat, seed, stops, temperature, topP, topLogProbs, parallelToolCalls, jsonSchema, audioConfig, reasoningEffort, user)
+                responseFormat, seed, stops, temperature, topP, topLogProbs, parallelToolCalls, jsonSchema,
+                audioConfig, reasoningEffort, verbosity, user)  // Added verbosity
         {
             tools.ProcessTools<Tool>(toolChoice, out var toolList, out var activeTool);
             Tools = toolList;
@@ -123,6 +125,11 @@ namespace OpenAI.Chat
         /// Currently supported values are: Low, Medium, High. Reducing reasoning effort can result in faster responses and fewer tokens used on reasoning response.<br/>
         /// <b>Reasoning models only!</b>
         /// </param>
+        /// <param name="verbosity">
+        /// GPT-5 verbosity parameter. Controls the detail level of responses.<br/>
+        /// Supported values are: "low", "medium", "high".<br/>
+        /// <b>GPT-5 models only!</b>
+        /// </param>
         /// <param name="user">
         /// A unique identifier representing your end-user, which can help OpenAI to monitor and detect abuse.
         /// </param>
@@ -145,6 +152,7 @@ namespace OpenAI.Chat
             JsonSchema jsonSchema = null,
             AudioConfig audioConfig = null,
             ReasoningEffort? reasoningEffort = null,
+            string verbosity = null,  // GPT-5 NEW
             string user = null)
         {
             Messages = messages?.ToList();
@@ -154,11 +162,18 @@ namespace OpenAI.Chat
                 throw new ArgumentNullException(nameof(messages), $"Missing required {nameof(messages)} parameter");
             }
 
+            // Update default model to GPT-5 if available
             Model = string.IsNullOrWhiteSpace(model) ? Models.Model.GPT4o : model;
 
             if (reasoningEffort.HasValue)
             {
                 ReasoningEffort = reasoningEffort.Value;
+            }
+
+            // GPT-5 verbosity parameter
+            if (!string.IsNullOrWhiteSpace(verbosity) && IsGPT5Model(model))
+            {
+                Verbosity = verbosity;
             }
 
             if (audioConfig != null && !Model.Contains("audio"))
@@ -205,6 +220,16 @@ namespace OpenAI.Chat
             User = user;
         }
 
+        // Helper method to check if model is GPT-5
+        private static bool IsGPT5Model(string model)
+        {
+            return !string.IsNullOrWhiteSpace(model) &&
+                   (model.Contains("gpt-5") ||
+                    model.Equals("gpt-5-mini", StringComparison.OrdinalIgnoreCase) ||
+                    model.Equals("gpt-5-nano", StringComparison.OrdinalIgnoreCase) ||
+                    model.Equals("gpt-5-chat", StringComparison.OrdinalIgnoreCase));
+        }
+
         /// <summary>
         /// The messages to generate chat completions for, in the chat format.
         /// </summary>
@@ -236,6 +261,17 @@ namespace OpenAI.Chat
         [Preserve]
         [JsonProperty("reasoning_effort", DefaultValueHandling = DefaultValueHandling.Ignore)]
         public ReasoningEffort? ReasoningEffort { get; }
+
+        /// <summary>
+        /// GPT-5 verbosity parameter. Controls the detail level of responses.<br/>
+        /// Supported values are: "low", "medium", "high".
+        /// </summary>
+        /// <remarks>
+        /// <b>GPT-5 models only!</b>
+        /// </remarks>
+        [Preserve]
+        [JsonProperty("verbosity", DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public string Verbosity { get; }
 
         /// <summary>
         /// Developer-defined tags and values used for filtering completions in the dashboard.
